@@ -130,3 +130,6 @@ dmypy.json
 
 # ingore vscode settings:
 .vscode/
+
+# ignore example data:
+/example_data

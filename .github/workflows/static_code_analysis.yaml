@@ -37,10 +37,6 @@ jobs:
             --disable-error-code import \
             "${REL_SRC_DIR_PATH}"
 
-      - name: pylint
-        run: |
-          pylint "${REL_SRC_DIR_PATH}"
-
       - name: flake8
         run: |
           flake8 --config .flake8

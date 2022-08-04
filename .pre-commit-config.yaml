@@ -31,8 +31,6 @@ repos:
       - id: detect-private-key
       - id: mixed-line-ending
         args: [--fix=lf]
-      - id: no-commit-to-branch
-        args: [--branch, dev, --branch, int, --branch, main]
       - id: debug-statements
       - id: debug-statements
       - id: debug-statements
@@ -50,12 +48,6 @@ repos:
     hooks:
       - id: mypy
         args: [--no-warn-unused-ignores]
-  - repo: https://github.com/PyCQA/pylint
-    rev: v2.13.3
-    hooks:
-      - id: pylint
-        args: [--disable=E0401]
-        exclude: db_migration|tests|.devcontainer
   - repo: https://github.com/PyCQA/flake8
     rev: 4.0.1
     hooks:

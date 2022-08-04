@@ -1,10 +1,7 @@
 
 
 
-# Template Repo for Experiments
-
-This repo can be used as a template when you would like to perform "informal" code
-experiments and explorations.
+# Crypt4GH experiments
 
 ## Adapting and Using the Template:
 The main code of your experiments should go into the [`./src`](./src) directory.
