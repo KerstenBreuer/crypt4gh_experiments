@@ -1,7 +1,7 @@
 
 
 
-# Crypt4GH experiments
+# Crow Experiments
 
 ## Adapting and Using the Template:
 The main code of your experiments should go into the [`./src`](./src) directory.
