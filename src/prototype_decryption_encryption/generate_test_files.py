@@ -44,6 +44,7 @@ def generate():
     public_key = get_public_key(pk_location)
 
     sk_location = (FILE_DIR / "sender.sec").resolve()
+    # copied from crypt4gh cli
     callback = partial(getpass, prompt=f"Passphrase for {sk_location}: ")
     secret_key = get_private_key(sk_location, callback)
 
