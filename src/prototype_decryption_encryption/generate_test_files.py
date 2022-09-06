@@ -35,6 +35,7 @@ def generate():
     unencrypted = FILE_DIR / "50MiB.fasta"
 
     with unencrypted.open("w", encoding="utf-8") as file:
+        file.write(HEADER)
         # should result in ~ 50MiB for 80 chars a line
         for _ in range(647270):
             file.write(fixed_line())
