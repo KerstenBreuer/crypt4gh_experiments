@@ -38,6 +38,9 @@ class Header(NamedTuple):
     edit_list: Optional[object]
 
 
+PART_SIZE = 16 * 1024**3
+
+
 def run():
     """
     TODO:
@@ -45,12 +48,58 @@ def run():
     """
 
 
-def interrogation_room_upload(file_location: str, checksum: str):
+def interrogation_room_upload(*, file_location: str, checksum: str):
     """
     TODO:
     Implement based on requirements in
     Prototype Script 1/3: Interrogation Room (Upload) GDEV-1238
     """
+    file = Path(file_location).resolve()
+    with file.open("rb") as source:
+        first_part = source.read(PART_SIZE)
+    encryption_secret, encryption_secret_id, offset = encryption_key_store_upload(
+        file_part=first_part
+    )
+    part_checksums, total_checksum = compute_checksums(
+        file_location=file_location, secret=encryption_secret, offset=offset
+    )
+    if total_checksum == checksum:
+        print(f"Checksum '{checksum}' correctly validated")
+    else:
+        print(f"Checksum mismatch!\nExpected: '{checksum}'\nActual: '{total_checksum}'")
+
+
+def compute_checksums(
+    *, file_location: str, secret: str, offset: int
+) -> Tuple[list[str], str]:
+    """
+    Iterate over actual content in the file, reading encrypted content starting at the
+    given offset. Consume PART_SIZE bytes at a time, decrypt the part content and
+    compute part checksums and checksum of the whole unencrypted content
+    """
+    file = Path(file_location).resolve()
+    total_checksum = hashlib.sha256()
+    part_checksums = []
+
+    with file.open("rb") as source:
+        source.seek(offset)
+        part = source.read(PART_SIZE)
+        while part:
+            decrypted = decrypt(part=part, secret=secret)
+            total_checksum.update(decrypted)
+            part_checksum = hashlib.sha256(decrypted).hexdigest()
+            part_checksums.append(part_checksum)
+            part = source.read(PART_SIZE)
+
+    return part_checksums, total_checksum.hexdigest()
+
+
+def decrypt(*, part: bytes, secret: str):
+    """
+    Decrypt file part with secret obtained from vault.
+    TODO: Check if we need to import something from crypt4gh or can use PyNaCl directly
+    """
+    return ""
 
 
 def encryption_key_store_upload(file_part: bytes) -> Tuple[str, str, int]:
