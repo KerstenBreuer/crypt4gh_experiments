@@ -19,6 +19,9 @@ Hardcode responses at non-implemented boundaries.
 """
 
 
+from typing import Tuple
+
+
 def run():
     """
     TODO:
@@ -26,7 +29,7 @@ def run():
     """
 
 
-def interrogation_room_upload():
+def interrogation_room_upload(file_location: str, checksum: str):
     """
     TODO:
     Implement based on requirements in
@@ -34,12 +37,13 @@ def interrogation_room_upload():
     """
 
 
-def encryption_key_store_upload():
+def encryption_key_store_upload(file_part: bytes) -> Tuple[str, str, int]:
     """
     TODO:
     Implement based on requirements in
     Prototype Script 2/3: Encryption Key Store (Upload) GDEV-1239
     """
+    return "", "", 0
 
 
 def encryption_key_store_download():
