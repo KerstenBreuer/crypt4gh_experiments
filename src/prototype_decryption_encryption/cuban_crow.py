@@ -74,24 +74,24 @@ def compute_checksums(
 ) -> Tuple[list[str], str]:
     """
     Iterate over actual content in the file, reading encrypted content starting at the
-    given offset. Consume PART_SIZE bytes at a time, decrypt the part content and
-    compute part checksums and checksum of the whole unencrypted content
+    given offset. Consume PART_SIZE bytes at a time, compute part checksum, decrypt the
+    part content and update checksum of the whole unencrypted content
     """
     file = Path(file_location).resolve()
     total_checksum = hashlib.sha256()
-    part_checksums = []
+    encrypted_part_checksums = []
 
     with file.open("rb") as source:
         source.seek(offset)
         part = source.read(PART_SIZE)
         while part:
+            part_checksum = hashlib.sha256(part).hexdigest()
+            encrypted_part_checksums.append(part_checksum)
             decrypted = decrypt(part=part, secret=secret)
             total_checksum.update(decrypted)
-            part_checksum = hashlib.sha256(decrypted).hexdigest()
-            part_checksums.append(part_checksum)
             part = source.read(PART_SIZE)
 
-    return part_checksums, total_checksum.hexdigest()
+    return encrypted_part_checksums, total_checksum.hexdigest()
 
 
 def decrypt(*, part: bytes, secret: str):
