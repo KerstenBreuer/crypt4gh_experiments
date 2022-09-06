@@ -133,3 +133,5 @@ dmypy.json
 
 # ignore example data:
 /example_data
+/input_files/*.fasta
+/input_files/*.c4gh
