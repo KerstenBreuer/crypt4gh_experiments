@@ -25,7 +25,7 @@ from typing import Tuple
 def run():
     """
     TODO:
-    Add logic to choose up-/download path
+    Add logic to first start upload and then download
     """
 
 
