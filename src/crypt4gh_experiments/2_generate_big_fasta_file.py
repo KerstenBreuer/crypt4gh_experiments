@@ -22,7 +22,7 @@ from functools import lru_cache
 from pathlib import Path
 from random import choice
 
-SRC_DIR = Path(__file__).parent.resolve().absolute()
+SRC_DIR = Path(__file__).parent.parent.resolve().absolute()
 EXAMPLE_DATA_DIR = SRC_DIR.parent.resolve() / "example_data"
 
 NUCLEOBASES = ("A", "T", "G", "C")

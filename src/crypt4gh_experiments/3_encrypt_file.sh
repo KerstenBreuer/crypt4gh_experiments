@@ -17,7 +17,7 @@
 
 cd /workspace/src
 
-EXAMPLE_DATA_DIR="${PWD}/../example_data/"
+EXAMPLE_DATA_DIR="${PWD}/../example_data"
 
 START_TIME=$SECONDS
 

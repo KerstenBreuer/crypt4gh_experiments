@@ -24,7 +24,7 @@ from typing import NamedTuple, Optional
 import crypt4gh.header  # type: ignore
 import crypt4gh.keys  # type: ignore
 
-SRC_DIR = Path(__file__).parent.resolve().absolute()
+SRC_DIR = Path(__file__).parent.parent.resolve().absolute()
 EXAMPLE_DATA_DIR = SRC_DIR.parent.resolve() / "example_data"
 
 
