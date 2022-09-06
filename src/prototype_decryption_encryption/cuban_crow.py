@@ -38,6 +38,10 @@ class Header(NamedTuple):
     edit_list: Optional[object]
 
 
+from crypt4gh import lib  # type: ignore
+from crypt4gh.lib import CIPHER_SEGMENT_SIZE  # type: ignore
+
+OUTDIR = Path(__file__).parent.parent.parent / "files"
 PART_SIZE = 16 * 1024**3
 
 
@@ -74,32 +78,35 @@ def compute_checksums(
 ) -> Tuple[list[str], str]:
     """
     Iterate over actual content in the file, reading encrypted content starting at the
-    given offset. Consume PART_SIZE bytes at a time, compute part checksum, decrypt the
-    part content and update checksum of the whole unencrypted content
+    given offset. Consume CIPHER_SEGMENT_SIZE bytes at a time, compute part checksum,
+    decrypt the part content and update checksum of the whole unencrypted content
     """
     file = Path(file_location).resolve()
+
+    if not OUTDIR.exists:
+        OUTDIR.mkdir()
+    outfile = (OUTDIR / "decrypted_content").open("wb")
+
     total_checksum = hashlib.sha256()
     encrypted_part_checksums = []
 
     with file.open("rb") as source:
         source.seek(offset)
-        part = source.read(PART_SIZE)
+        part = source.read(CIPHER_SEGMENT_SIZE)
         while part:
             part_checksum = hashlib.sha256(part).hexdigest()
             encrypted_part_checksums.append(part_checksum)
-            decrypted = decrypt(part=part, secret=secret)
+
+            decrypted = lib.decrypt_block(ciphersegment=part, session_keys=[secret])
+
             total_checksum.update(decrypted)
-            part = source.read(PART_SIZE)
+            outfile.write(decrypted)
+            part = source.read(CIPHER_SEGMENT_SIZE)
+
+    outfile.flush()
+    outfile.close()
 
     return encrypted_part_checksums, total_checksum.hexdigest()
-
-
-def decrypt(*, part: bytes, secret: str):
-    """
-    Decrypt file part with secret obtained from vault.
-    TODO: Check if we need to import something from crypt4gh or can use PyNaCl directly
-    """
-    return ""
 
 
 def encryption_key_store_upload(file_part: bytes) -> Tuple[str, str, int]:
