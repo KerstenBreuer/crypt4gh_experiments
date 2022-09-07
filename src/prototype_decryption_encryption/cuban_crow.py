@@ -50,6 +50,7 @@ def run():
         file_location=INPUT_DIR / "50MiB.fasta.c4gh",
         checksum="3e67802e821306fe287b85001dbab213a3eb4d2560702c5740741e5111c97841",
     )
+    # download(checksum="3e67802e821306fe287b85001dbab213a3eb4d2560702c5740741e5111c97841")
 
 
 def interrogation_room_upload(*, file_location: Path, checksum: str):
