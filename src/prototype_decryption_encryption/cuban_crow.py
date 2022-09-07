@@ -17,13 +17,11 @@ Prototype encryption/decryption (Cuban Crow) script.
 One base function for each part/ticket, extensible with required subfunctions.
 Hardcode responses at non-implemented boundaries.
 """
-import filecmp
 import hashlib
 import io
 from pathlib import Path
-from sys import stderr
 from typing import NamedTuple, Optional, Tuple
-
+import sys
 
 import crypt4gh.header  # type: ignore
 import crypt4gh.keys  # type: ignore
@@ -79,9 +77,10 @@ def interrogation_room_upload(*, file_location: Path, checksum: str):
     if total_checksum == checksum:
         print(f"Checksum '{checksum}' correctly validated")
     else:
-        print(f"Checksum mismatch!\nExpected: '{checksum}'\nActual: '{total_checksum}'")
-    if not filecmp.cmp(INDIR / "50MiB.fasta", OUTDIR / "decrypted_content"):
-        print("Source file and decrypted file content mismatch", file=stderr)
+        print(
+            f"Checksum mismatch!\nExpected: '{checksum}'\nActual: '{total_checksum}'",
+            file=sys.stderr,
+        )
     print(f"Part checksums: {part_checksums}")
 
 
