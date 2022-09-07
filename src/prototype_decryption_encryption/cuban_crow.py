@@ -43,6 +43,19 @@ def encryption_key_store_upload(file_part: bytes) -> Tuple[str, str, int]:
     Implement based on requirements in
     Prototype Script 2/3: Encryption Key Store (Upload) GDEV-1239
     """
+
+    # request crypt4gh private key (subfunction)
+
+    # get envelope
+
+    # decrypt envelope, get secret
+
+    # generate ID (sha256)
+
+    # deterine offset
+
+    # reply with: secret, secret id, offset
+
     return "", "", 0
 
 
