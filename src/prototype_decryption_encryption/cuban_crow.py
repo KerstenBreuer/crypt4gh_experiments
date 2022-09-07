@@ -82,6 +82,7 @@ def interrogation_room_upload(*, file_location: Path, checksum: str):
         print(f"Checksum mismatch!\nExpected: '{checksum}'\nActual: '{total_checksum}'")
     if not filecmp.cmp(INDIR / "50MiB.fasta", OUTDIR / "decrypted_content"):
         print("Source file and decrypted file content mismatch", file=stderr)
+    print(f"Part checksums: {part_checksums}")
 
 
 def compute_checksums(
@@ -96,7 +97,7 @@ def compute_checksums(
 
     if not OUTDIR.exists():
         OUTDIR.mkdir()
-    outpath = OUTDIR / "decrypted_content"
+    outpath = OUTDIR / "encrypted_content"
 
     total_checksum = hashlib.sha256()
     encrypted_part_checksums = []
@@ -106,13 +107,14 @@ def compute_checksums(
             source.seek(offset)
             part = source.read(CIPHER_SEGMENT_SIZE)
             while part:
+                outfile.write(part)
+
                 part_checksum = hashlib.sha256(part).hexdigest()
                 encrypted_part_checksums.append(part_checksum)
 
                 decrypted = lib.decrypt_block(ciphersegment=part, session_keys=[secret])
-
                 total_checksum.update(decrypted)
-                outfile.write(decrypted)
+
                 part = source.read(CIPHER_SEGMENT_SIZE)
 
     return encrypted_part_checksums, total_checksum.hexdigest()
