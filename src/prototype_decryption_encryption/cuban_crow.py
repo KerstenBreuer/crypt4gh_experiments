@@ -46,6 +46,8 @@ def encryption_key_store_upload(file_part: bytes) -> Tuple[str, str, int]:
 
     # request crypt4gh private key (subfunction)
 
+    get_cryp4gh_private_key()
+
     # get envelope
 
     # decrypt envelope, get secret
@@ -65,6 +67,11 @@ def encryption_key_store_download():
     Implement based on requirements in
     Prototype Script 3/3: Encryption Key Store (Download) GDEV-1240
     """
+
+
+def get_cryp4gh_private_key():
+
+    return "input_files/"
 
 
 if __name__ == "__main__":
