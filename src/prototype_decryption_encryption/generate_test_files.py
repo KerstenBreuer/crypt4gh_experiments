@@ -14,15 +14,12 @@
 # limitations under the License.
 """Script for test file generation"""
 
-from functools import partial
-from getpass import getpass
 from pathlib import Path
 
 from crypt4gh import lib  # type: ignore
 from crypt4gh.keys import get_private_key, get_public_key  # type: ignore
 
 HEADER = ">ABC DNA"
-NUCLEOBASES = ("A", "T", "G", "C")
 FILE_DIR = Path(__file__).parent.parent.parent / "input_files"
 
 
@@ -45,9 +42,7 @@ def generate():
     public_key = get_public_key(pk_location)
 
     sk_location = (FILE_DIR / "sender.sec").resolve()
-    # copied from crypt4gh cli
-    callback = partial(getpass, prompt=f"Passphrase for {sk_location}: ")
-    secret_key = get_private_key(sk_location, callback)
+    secret_key = get_private_key(sk_location, lambda: None)
 
     # encrypt test file using crypt4gh
     encrypted = FILE_DIR / "50MiB.fasta.c4gh"

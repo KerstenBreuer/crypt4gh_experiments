@@ -135,3 +135,4 @@ dmypy.json
 /example_data
 /input_files/*.fasta
 /input_files/*.c4gh
+/output_files
