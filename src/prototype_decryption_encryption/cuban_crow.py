@@ -147,10 +147,10 @@ def encryption_key_store_download():
     See: Prototype Script 3/3: Encryption Key Store (Download) GDEV-1240
     """
     # get ghga private key and user public keys
-    ghga_secret = get_private_key(INDIR / "receiver.sec", lambda: None)
+    ghga_secret = get_private_key(INDIR / "ghga.sec", lambda: None)
     pub_keys = [
-        get_public_key(INDIR / "sender.pub"),
-        get_public_key(INDIR / "sender_2.pub"),
+        get_public_key(INDIR / "researcher_1.pub"),
+        get_public_key(INDIR / "researcher_2.pub"),
     ]
     # fixme: Placeholder. Replace with K_Data from encryption_key_store_upload,
     # get decryption secret -> save as global state in either 1 or 2
@@ -184,10 +184,10 @@ def download(*, checksum: str):
             file.write(envelope)
             shutil.copyfileobj(encrypted_content, file)
 
-    ghga_public = get_public_key(INDIR / "receiver.pub")
+    ghga_public = get_public_key(INDIR / "ghga.pub")
     secret_keys = [
-        get_private_key(INDIR / "sender.sec", lambda: None),
-        get_private_key(INDIR / "sender_2.sec", lambda: None),
+        get_private_key(INDIR / "researcher_1.sec", lambda: None),
+        get_private_key(INDIR / "researcher_2.sec", lambda: None),
     ]
     outfile_1 = OUTDIR / "decrypted_content_1"
     outfile_2 = OUTDIR / "decrypted_content_2"
