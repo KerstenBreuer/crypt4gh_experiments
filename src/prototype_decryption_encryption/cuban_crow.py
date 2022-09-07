@@ -19,6 +19,8 @@ Hardcode responses at non-implemented boundaries.
 """
 import hashlib
 import io
+import shutil
+import sys
 from pathlib import Path
 from typing import NamedTuple, Optional, Tuple
 
@@ -140,20 +142,20 @@ def encryption_key_store_upload(file_part: bytes) -> Tuple[str, str, int]:
 
 def encryption_key_store_download():
     """
-    TODO:
-    Implement based on requirements in
-    Prototype Script 3/3: Encryption Key Store (Download) GDEV-1240
+    Retrieve GHGA secret key, user 1+2 public keys and create personalized envelope
+    See: Prototype Script 3/3: Encryption Key Store (Download) GDEV-1240
     """
     # get ghga private key and user public keys
-    ghga_secret = crypt4gh.keys.get_private_key(INPUT_DIR / "ghga.sec", lambda: None)
-    pub_key_1 = crypt4gh.keys.get_public_key(INPUT_DIR / "researcher_1.pub")
-    pub_key_2 = crypt4gh.keys.get_public_key(INPUT_DIR / "researcher_2.pub")
+    ghga_secret = get_private_key(INDIR / "receiver.sec", lambda: None)
+    pub_keys = [
+        get_public_key(INDIR / "sender.pub"),
+        get_public_key(INDIR / "sender_2.pub"),
+    ]
     # fixme: Placeholder. Replace with K_Data from encryption_key_store_upload,
     # get decryption secret -> save as global state in either 1 or 2
     session_keys = ["ABCDEFGHIJKLMNOPQRTSUVWXYZ"]
-    edit_list = None
-    header = Header(session_keys=session_keys, edit_list=edit_list)
-    keys = [(0, ghga_secret, pub_key_1), (0, ghga_secret, pub_key_2)]
+    header = Header(session_keys=session_keys, edit_list=None)
+    keys = [(0, ghga_secret, pub_key) for pub_key in pub_keys]
     return crypt4gh.header.encrypt(packet=header, keys=keys)
 
 
@@ -164,6 +166,56 @@ def request_cryp4gh_private_key() -> str:
     ghga_sec = crypt4gh.keys.get_private_key(INPUT_DIR / "ghga.sec", lambda: None)
 
     return ghga_sec
+
+
+def download(*, checksum: str):
+    """
+    Generate envelope for two users, contcatenat with encrypted content,
+    decrypt content for both users separatly and verify checksum
+    """
+    envelope = encryption_key_store_download()
+    file_path = OUTDIR / "encrypted_content"
+
+    downloaded_file = OUTDIR / "downloaded_file"
+
+    with file_path.open("rb") as encrypted_content:
+        with downloaded_file.open("wb") as file:
+            file.write(envelope)
+            shutil.copyfileobj(encrypted_content, file)
+
+    ghga_public = get_public_key(INDIR / "receiver.pub")
+    secret_keys = [
+        get_private_key(INDIR / "sender.sec", lambda: None),
+        get_private_key(INDIR / "sender_2.sec", lambda: None),
+    ]
+    outfile_1 = OUTDIR / "decrypted_content_1"
+    outfile_2 = OUTDIR / "decrypted_content_2"
+
+    # explicitly check decryption with both keys
+    with downloaded_file.open("rb") as infile:
+        with outfile_1.open("wb") as outfile:
+            lib.decrypt(
+                keys=[(0, secret_keys[0], ghga_public)],
+                infile=infile,
+                outfile=outfile,
+            )
+
+        with outfile_2.open("wb") as outfile:
+            lib.decrypt(
+                keys=[(0, secret_keys[1], ghga_public)],
+                infile=infile,
+                outfile=outfile,
+            )
+
+    # checksum validation
+    for outpath in [outfile_1, outfile_2]:
+        with outpath.open("rb") as file:
+            computed_checksum = hashlib.sha256(file.read()).hexdigest()
+            if checksum != computed_checksum:
+                print(
+                    f"Checksum mismatch for '{outpath}'\nExpected: {checksum}\nActual: {computed_checksum}",
+                    file=sys.stderr,
+                )
 
 
 if __name__ == "__main__":
