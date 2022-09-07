@@ -17,15 +17,18 @@ Prototype encryption/decryption (Cuban Crow) script.
 One base function for each part/ticket, extensible with required subfunctions.
 Hardcode responses at non-implemented boundaries.
 """
-
-
+import filecmp
 import hashlib
 import io
 from pathlib import Path
+from sys import stderr
 from typing import NamedTuple, Optional, Tuple
+
 
 import crypt4gh.header  # type: ignore
 import crypt4gh.keys  # type: ignore
+from crypt4gh import lib  # type: ignore
+from crypt4gh.lib import CIPHER_SEGMENT_SIZE  # type: ignore
 
 SRC_DIR = Path(__file__).parent.parent.resolve().absolute()
 FILES_DIR = SRC_DIR.parent.resolve() / "input_files"
@@ -38,11 +41,9 @@ class Header(NamedTuple):
     edit_list: Optional[object]
 
 
-from crypt4gh import lib  # type: ignore
-from crypt4gh.lib import CIPHER_SEGMENT_SIZE  # type: ignore
-
-OUTDIR = Path(__file__).parent.parent.parent / "files"
-PART_SIZE = 16 * 1024**3
+INDIR = Path(__file__).parent.parent.parent / "input_files"
+OUTDIR = Path(__file__).parent.parent.parent / "output_files"
+PART_SIZE = 16 * 1024**2
 
 
 def run():
@@ -50,20 +51,28 @@ def run():
     TODO:
     Add logic to first start upload and then download
     """
-
-
-def interrogation_room_upload(*, file_location: str, checksum: str):
-    """
-    TODO:
-    Implement based on requirements in
-    Prototype Script 1/3: Interrogation Room (Upload) GDEV-1238
-    """
-    file = Path(file_location).resolve()
-    with file.open("rb") as source:
-        first_part = source.read(PART_SIZE)
-    encryption_secret, encryption_secret_id, offset = encryption_key_store_upload(
-        file_part=first_part
+    interrogation_room_upload(
+        file_location=INDIR / "50MiB.fasta.c4gh",
+        checksum="3e67802e821306fe287b85001dbab213a3eb4d2560702c5740741e5111c97841",
     )
+
+
+def interrogation_room_upload(*, file_location: Path, checksum: str):
+    """
+    Forwards first file part to encryption key store, retrieves file encryption
+    secret(s) (K_data), decrypts file and computes checksums
+    See: Prototype Script 1/3: Interrogation Room (Upload) GDEV-1238
+    """
+    with file_location.open("rb") as source:
+        # first_part = source.read(PART_SIZE)
+        _ = source.read(PART_SIZE)
+
+    # fixme: Placeholder. Replace with call to implementation when 1239 is ready
+    encryption_secret = b'(\xb6`\xdb\x9fR\xda\xa7"\xb7d\xb2\xf7\x03\xba=\xfe\xd4\xf2\xd8\x13\xae\x885X\xdf\xf7]\xcdL\x03K'
+    offset = 124
+    # encryption_secret, encryption_secret_id, offset = encryption_key_store_upload(
+    #     file_part=first_part
+    # )
     part_checksums, total_checksum = compute_checksums(
         file_location=file_location, secret=encryption_secret, offset=offset
     )
@@ -71,40 +80,40 @@ def interrogation_room_upload(*, file_location: str, checksum: str):
         print(f"Checksum '{checksum}' correctly validated")
     else:
         print(f"Checksum mismatch!\nExpected: '{checksum}'\nActual: '{total_checksum}'")
+    if not filecmp.cmp(INDIR / "50MiB.fasta", OUTDIR / "decrypted_content"):
+        print("Source file and decrypted file content mismatch", file=stderr)
 
 
 def compute_checksums(
-    *, file_location: str, secret: str, offset: int
+    *, file_location: Path, secret: bytes, offset: int
 ) -> Tuple[list[str], str]:
     """
     Iterate over actual content in the file, reading encrypted content starting at the
     given offset. Consume CIPHER_SEGMENT_SIZE bytes at a time, compute part checksum,
     decrypt the part content and update checksum of the whole unencrypted content
     """
-    file = Path(file_location).resolve()
+    file = file_location.resolve()
 
-    if not OUTDIR.exists:
+    if not OUTDIR.exists():
         OUTDIR.mkdir()
-    outfile = (OUTDIR / "decrypted_content").open("wb")
+    outpath = OUTDIR / "decrypted_content"
 
     total_checksum = hashlib.sha256()
     encrypted_part_checksums = []
 
     with file.open("rb") as source:
-        source.seek(offset)
-        part = source.read(CIPHER_SEGMENT_SIZE)
-        while part:
-            part_checksum = hashlib.sha256(part).hexdigest()
-            encrypted_part_checksums.append(part_checksum)
-
-            decrypted = lib.decrypt_block(ciphersegment=part, session_keys=[secret])
-
-            total_checksum.update(decrypted)
-            outfile.write(decrypted)
+        with outpath.open("wb") as outfile:
+            source.seek(offset)
             part = source.read(CIPHER_SEGMENT_SIZE)
+            while part:
+                part_checksum = hashlib.sha256(part).hexdigest()
+                encrypted_part_checksums.append(part_checksum)
 
-    outfile.flush()
-    outfile.close()
+                decrypted = lib.decrypt_block(ciphersegment=part, session_keys=[secret])
+
+                total_checksum.update(decrypted)
+                outfile.write(decrypted)
+                part = source.read(CIPHER_SEGMENT_SIZE)
 
     return encrypted_part_checksums, total_checksum.hexdigest()
 
