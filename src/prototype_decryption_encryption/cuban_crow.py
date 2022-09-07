@@ -144,6 +144,17 @@ def encryption_key_store_download():
     Implement based on requirements in
     Prototype Script 3/3: Encryption Key Store (Download) GDEV-1240
     """
+    # get ghga private key and user public keys
+    ghga_secret = crypt4gh.keys.get_private_key(INPUT_DIR / "ghga.sec", lambda: None)
+    pub_key_1 = crypt4gh.keys.get_public_key(INPUT_DIR / "researcher_1.pub")
+    pub_key_2 = crypt4gh.keys.get_public_key(INPUT_DIR / "researcher_2.pub")
+    # fixme: Placeholder. Replace with K_Data from encryption_key_store_upload,
+    # get decryption secret -> save as global state in either 1 or 2
+    session_keys = ["ABCDEFGHIJKLMNOPQRTSUVWXYZ"]
+    edit_list = None
+    header = Header(session_keys=session_keys, edit_list=edit_list)
+    keys = [(0, ghga_secret, pub_key_1), (0, ghga_secret, pub_key_2)]
+    return crypt4gh.header.encrypt(packet=header, keys=keys)
 
 
 def request_cryp4gh_private_key() -> str:
