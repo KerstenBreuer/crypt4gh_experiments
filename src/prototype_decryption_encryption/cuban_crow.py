@@ -19,7 +19,23 @@ Hardcode responses at non-implemented boundaries.
 """
 
 
-from typing import Tuple
+import hashlib
+import io
+from pathlib import Path
+from typing import NamedTuple, Optional, Tuple
+
+import crypt4gh.header  # type: ignore
+import crypt4gh.keys  # type: ignore
+
+SRC_DIR = Path(__file__).parent.parent.resolve().absolute()
+FILES_DIR = SRC_DIR.parent.resolve() / "input_files"
+
+
+class Header(NamedTuple):
+    """Contains the content of a header"""
+
+    session_keys: list[bytes]  # this is the enryption secret for the file
+    edit_list: Optional[object]
 
 
 def run():
@@ -39,11 +55,29 @@ def interrogation_room_upload(file_location: str, checksum: str):
 
 def encryption_key_store_upload(file_part: bytes) -> Tuple[str, str, int]:
     """
-    TODO:
-    Implement based on requirements in
-    Prototype Script 2/3: Encryption Key Store (Upload) GDEV-1239
+    Encryption key store functionality:
+    Extract header envelope from the first file part
+    Decrypt header & extract key
+    Return key, key id and offset
     """
-    return "", "", 0
+
+    file_stream = io.BytesIO(file_part)
+
+    # request crypt4gh private key
+    ghga_sec = request_cryp4gh_private_key()
+    ghga_keys = [(0, ghga_sec, None)]
+
+    session_keys, __ = crypt4gh.header.deconstruct(
+        file_stream,
+        keys=ghga_keys,
+    )
+
+    # retrieve session key, offset and generate hash id of session key
+    session_key = session_keys[0]
+    content_start = file_stream.tell()
+    session_key_id = hashlib.sha256(session_key).hexdigest()
+
+    return session_key, session_key_id, content_start
 
 
 def encryption_key_store_download():
@@ -52,6 +86,17 @@ def encryption_key_store_download():
     Implement based on requirements in
     Prototype Script 3/3: Encryption Key Store (Download) GDEV-1240
     """
+
+
+def request_cryp4gh_private_key() -> str:
+    """Returns the ghga private key"""
+
+    # get secret ghga key:
+    ghga_sec = crypt4gh.keys.get_private_key(
+        FILES_DIR.resolve() / "ghga.sec", lambda: None
+    )
+
+    return ghga_sec
 
 
 if __name__ == "__main__":
