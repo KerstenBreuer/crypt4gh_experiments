@@ -34,6 +34,8 @@ INPUT_DIR = ROOT_DIR / "input_files"
 OUTPUT_DIR = ROOT_DIR / "output_files"
 PART_SIZE = 16 * 1024**2
 
+SESSION_KEY = ""
+
 
 class Header(NamedTuple):
     """Contains the content of a header"""
@@ -139,6 +141,9 @@ def encryption_key_store_upload(file_part: bytes) -> Tuple[str, str, int]:
     content_start = file_stream.tell()
     session_key_id = hashlib.sha256(session_key).hexdigest()
 
+    global SESSION_KEY
+    SESSION_KEY = session_key
+
     return session_key, session_key_id, content_start
 
 
@@ -153,13 +158,11 @@ def encryption_key_store_download():
         crypt4gh.keys.get_public_key(INPUT_DIR / "researcher_1.pub"),
         crypt4gh.keys.get_public_key(INPUT_DIR / "researcher_2.pub"),
     ]
-    # fixme: Placeholder. Replace with K_Data from encryption_key_store_upload,
-    # get decryption secret -> save as global state in either 1 or 2
-    session_keys = ["ABCDEFGHIJKLMNOPQRTSUVWXYZ"]
-    header = Header(session_keys=session_keys, edit_list=None)
     keys = [(0, ghga_secret, pub_key) for pub_key in pub_keys]
-    envelope_parts = crypt4gh.header.encrypt(packet=header, keys=keys)
-    return b"".join(envelope_parts)
+    header_content = crypt4gh.header.make_packet_data_enc(0, SESSION_KEY)
+    header_packets = crypt4gh.header.encrypt(header_content, keys)
+    header_bytes = crypt4gh.header.serialize(header_packets)
+    return header_bytes
 
 
 def request_cryp4gh_private_key() -> str:
@@ -203,6 +206,8 @@ def download(*, checksum: str):
                 outfile=outfile,
             )
 
+        # Rewind input file
+        infile.seek(0)
         with outfile_2.open("wb") as outfile:
             crypt4gh.lib.decrypt(
                 keys=[(0, secret_keys[1], ghga_public)],
@@ -219,6 +224,8 @@ def download(*, checksum: str):
                     f"Checksum mismatch for '{outpath}'\nExpected: {checksum}\nActual: {computed_checksum}",
                     file=sys.stderr,
                 )
+            else:
+                print(f"Checksum works for {outpath}")
 
 
 if __name__ == "__main__":
