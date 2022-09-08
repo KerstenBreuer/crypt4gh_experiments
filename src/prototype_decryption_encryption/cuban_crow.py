@@ -72,9 +72,11 @@ def interrogation_room_upload(*, file_location: Path, checksum: str):
         file_location=file_location, secret=encryption_secret, offset=offset
     )
     if total_checksum == checksum:
-        print(f"Checksum '{checksum}' correctly validated")
+        print(f"Upload: Checksum '{checksum}' correctly validated")
     else:
-        print(f"Checksum mismatch!\nExpected: '{checksum}'\nActual: '{total_checksum}'")
+        print(
+            f"Upload: Checksum mismatch!\nExpected: '{checksum}'\nActual: '{total_checksum}'"
+        )
     print(
         f"Part checksums: {part_checksums}\nEncryption secret id: {encryption_secret_id}"
     )
@@ -100,12 +102,19 @@ def compute_checksums(
     with file.open("rb") as source:
         with outpath.open("wb") as outfile:
             source.seek(offset)
+            # we need the actual part, not just the cipher text block
+            part_buffer = bytearray()
             part = source.read(CIPHER_SEGMENT_SIZE)
             while part:
                 outfile.write(part)
+                part_buffer.extend(part)
 
-                part_checksum = hashlib.sha256(part).hexdigest()
-                encrypted_part_checksums.append(part_checksum)
+                # compute part checksum, if we reach actual part size
+                if len(part_buffer) >= PART_SIZE:
+                    file_part = part_buffer[:PART_SIZE]
+                    part_checksum = hashlib.sha256(file_part).hexdigest()
+                    encrypted_part_checksums.append(part_checksum)
+                    part_buffer = part_buffer[PART_SIZE:]
 
                 decrypted = crypt4gh.lib.decrypt_block(
                     ciphersegment=part, session_keys=[secret]
@@ -113,6 +122,10 @@ def compute_checksums(
                 total_checksum.update(decrypted)
 
                 part = source.read(CIPHER_SEGMENT_SIZE)
+            # Compute checksum for last part
+            if len(part_buffer):
+                part_checksum = hashlib.sha256(file_part).hexdigest()
+                encrypted_part_checksums.append(part_checksum)
 
     return encrypted_part_checksums, total_checksum.hexdigest()
 
@@ -187,7 +200,7 @@ def download(*, checksum: str):
             shutil.copyfileobj(encrypted_content, file)
 
     ghga_public = crypt4gh.keys.get_public_key(INPUT_DIR / "ghga.pub")
-    secret_key = crypt4gh.keys.get_private_key(
+    user_secret = crypt4gh.keys.get_private_key(
         INPUT_DIR / "researcher_2.sec", lambda: None
     )
     outpath = OUTPUT_DIR / "decrypted_content"
@@ -196,7 +209,7 @@ def download(*, checksum: str):
     with downloaded_file.open("rb") as infile:
         with outpath.open("wb") as outfile:
             crypt4gh.lib.decrypt(
-                keys=[(0, secret_key, ghga_public)],
+                keys=[(0, user_secret, ghga_public)],
                 infile=infile,
                 outfile=outfile,
                 sender_pubkey=ghga_public,
@@ -207,11 +220,11 @@ def download(*, checksum: str):
         computed_checksum = hashlib.sha256(file.read()).hexdigest()
         if checksum != computed_checksum:
             print(
-                f"Checksum mismatch for '{outpath}'\nExpected: {checksum}\nActual: {computed_checksum}",
+                f"Download: Checksum mismatch for '{outpath}'\nExpected: {checksum}\nActual: {computed_checksum}",
                 file=sys.stderr,
             )
         else:
-            print(f"Checksum valid for {outpath}")
+            print(f"Download: Checksum valid for {outpath}")
 
 
 if __name__ == "__main__":
