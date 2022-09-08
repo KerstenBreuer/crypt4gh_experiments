@@ -21,15 +21,16 @@ import hashlib
 import io
 from pathlib import Path
 from typing import NamedTuple, Optional, Tuple
-import sys
 
 import crypt4gh.header  # type: ignore
 import crypt4gh.keys  # type: ignore
-from crypt4gh import lib  # type: ignore
+import crypt4gh.lib  # type: ignore
 from crypt4gh.lib import CIPHER_SEGMENT_SIZE  # type: ignore
 
-SRC_DIR = Path(__file__).parent.parent.resolve().absolute()
-FILES_DIR = SRC_DIR.parent.resolve() / "input_files"
+ROOT_DIR = Path(__file__).parent.parent.parent.resolve()
+INPUT_DIR = ROOT_DIR / "input_files"
+OUTPUT_DIR = ROOT_DIR / "output_files"
+PART_SIZE = 16 * 1024**2
 
 
 class Header(NamedTuple):
@@ -39,18 +40,12 @@ class Header(NamedTuple):
     edit_list: Optional[object]
 
 
-INDIR = Path(__file__).parent.parent.parent / "input_files"
-OUTDIR = Path(__file__).parent.parent.parent / "output_files"
-PART_SIZE = 16 * 1024**2
-
-
 def run():
     """
-    TODO:
-    Add logic to first start upload and then download
+    Logic to start simulated upload and then download
     """
     interrogation_room_upload(
-        file_location=INDIR / "50MiB.fasta.c4gh",
+        file_location=INPUT_DIR / "50MiB.fasta.c4gh",
         checksum="3e67802e821306fe287b85001dbab213a3eb4d2560702c5740741e5111c97841",
     )
 
@@ -62,30 +57,25 @@ def interrogation_room_upload(*, file_location: Path, checksum: str):
     See: Prototype Script 1/3: Interrogation Room (Upload) GDEV-1238
     """
     with file_location.open("rb") as source:
-        # first_part = source.read(PART_SIZE)
-        _ = source.read(PART_SIZE)
+        first_part = source.read(PART_SIZE)
 
-    # fixme: Placeholder. Replace with call to implementation when 1239 is ready
-    encryption_secret = b'(\xb6`\xdb\x9fR\xda\xa7"\xb7d\xb2\xf7\x03\xba=\xfe\xd4\xf2\xd8\x13\xae\x885X\xdf\xf7]\xcdL\x03K'
-    offset = 124
-    # encryption_secret, encryption_secret_id, offset = encryption_key_store_upload(
-    #     file_part=first_part
-    # )
+    encryption_secret, encryption_secret_id, offset = encryption_key_store_upload(
+        file_part=first_part
+    )
     part_checksums, total_checksum = compute_checksums(
         file_location=file_location, secret=encryption_secret, offset=offset
     )
     if total_checksum == checksum:
         print(f"Checksum '{checksum}' correctly validated")
     else:
-        print(
-            f"Checksum mismatch!\nExpected: '{checksum}'\nActual: '{total_checksum}'",
-            file=sys.stderr,
-        )
-    print(f"Part checksums: {part_checksums}")
+        print(f"Checksum mismatch!\nExpected: '{checksum}'\nActual: '{total_checksum}'")
+    print(
+        f"Part checksums: {part_checksums}\nEncryption secret id: {encryption_secret_id}"
+    )
 
 
 def compute_checksums(
-    *, file_location: Path, secret: bytes, offset: int
+    *, file_location: Path, secret: str, offset: int
 ) -> Tuple[list[str], str]:
     """
     Iterate over actual content in the file, reading encrypted content starting at the
@@ -94,9 +84,9 @@ def compute_checksums(
     """
     file = file_location.resolve()
 
-    if not OUTDIR.exists():
-        OUTDIR.mkdir()
-    outpath = OUTDIR / "encrypted_content"
+    if not OUTPUT_DIR.exists():
+        OUTPUT_DIR.mkdir()
+    outpath = OUTPUT_DIR / "encrypted_content"
 
     total_checksum = hashlib.sha256()
     encrypted_part_checksums = []
@@ -111,7 +101,9 @@ def compute_checksums(
                 part_checksum = hashlib.sha256(part).hexdigest()
                 encrypted_part_checksums.append(part_checksum)
 
-                decrypted = lib.decrypt_block(ciphersegment=part, session_keys=[secret])
+                decrypted = crypt4gh.lib.decrypt_block(
+                    ciphersegment=part, session_keys=[secret]
+                )
                 total_checksum.update(decrypted)
 
                 part = source.read(CIPHER_SEGMENT_SIZE)
@@ -158,9 +150,7 @@ def request_cryp4gh_private_key() -> str:
     """Returns the ghga private key"""
 
     # get secret ghga key:
-    ghga_sec = crypt4gh.keys.get_private_key(
-        FILES_DIR.resolve() / "ghga.sec", lambda: None
-    )
+    ghga_sec = crypt4gh.keys.get_private_key(INPUT_DIR / "ghga.sec", lambda: None)
 
     return ghga_sec
 
