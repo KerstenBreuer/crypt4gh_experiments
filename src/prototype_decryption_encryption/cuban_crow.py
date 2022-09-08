@@ -19,6 +19,8 @@ Hardcode responses at non-implemented boundaries.
 """
 import hashlib
 import io
+import shutil
+import sys
 from pathlib import Path
 from typing import NamedTuple, Optional, Tuple
 
@@ -32,6 +34,8 @@ INPUT_DIR = ROOT_DIR / "input_files"
 OUTPUT_DIR = ROOT_DIR / "output_files"
 PART_SIZE = 16 * 1024**2
 
+SESSION_KEY = ""
+
 
 class Header(NamedTuple):
     """Contains the content of a header"""
@@ -44,10 +48,12 @@ def run():
     """
     Logic to start simulated upload and then download
     """
+    checksum = "3e67802e821306fe287b85001dbab213a3eb4d2560702c5740741e5111c97841"
     interrogation_room_upload(
         file_location=INPUT_DIR / "50MiB.fasta.c4gh",
-        checksum="3e67802e821306fe287b85001dbab213a3eb4d2560702c5740741e5111c97841",
+        checksum=checksum,
     )
+    download(checksum=checksum)
 
 
 def interrogation_room_upload(*, file_location: Path, checksum: str):
@@ -66,9 +72,11 @@ def interrogation_room_upload(*, file_location: Path, checksum: str):
         file_location=file_location, secret=encryption_secret, offset=offset
     )
     if total_checksum == checksum:
-        print(f"Checksum '{checksum}' correctly validated")
+        print(f"Upload: Checksum '{checksum}' correctly validated")
     else:
-        print(f"Checksum mismatch!\nExpected: '{checksum}'\nActual: '{total_checksum}'")
+        print(
+            f"Upload: Checksum mismatch!\nExpected: '{checksum}'\nActual: '{total_checksum}'"
+        )
     print(
         f"Part checksums: {part_checksums}\nEncryption secret id: {encryption_secret_id}"
     )
@@ -94,12 +102,19 @@ def compute_checksums(
     with file.open("rb") as source:
         with outpath.open("wb") as outfile:
             source.seek(offset)
+            # we need the actual part, not just the cipher text block
+            part_buffer = bytearray()
             part = source.read(CIPHER_SEGMENT_SIZE)
             while part:
                 outfile.write(part)
+                part_buffer.extend(part)
 
-                part_checksum = hashlib.sha256(part).hexdigest()
-                encrypted_part_checksums.append(part_checksum)
+                # compute part checksum, if we reach actual part size
+                if len(part_buffer) >= PART_SIZE:
+                    file_part = part_buffer[:PART_SIZE]
+                    part_checksum = hashlib.sha256(file_part).hexdigest()
+                    encrypted_part_checksums.append(part_checksum)
+                    part_buffer = part_buffer[PART_SIZE:]
 
                 decrypted = crypt4gh.lib.decrypt_block(
                     ciphersegment=part, session_keys=[secret]
@@ -107,6 +122,10 @@ def compute_checksums(
                 total_checksum.update(decrypted)
 
                 part = source.read(CIPHER_SEGMENT_SIZE)
+            # Compute checksum for last part
+            if len(part_buffer):
+                part_checksum = hashlib.sha256(file_part).hexdigest()
+                encrypted_part_checksums.append(part_checksum)
 
     return encrypted_part_checksums, total_checksum.hexdigest()
 
@@ -135,15 +154,25 @@ def encryption_key_store_upload(file_part: bytes) -> Tuple[str, str, int]:
     content_start = file_stream.tell()
     session_key_id = hashlib.sha256(session_key).hexdigest()
 
+    global SESSION_KEY
+    SESSION_KEY = session_key
+
     return session_key, session_key_id, content_start
 
 
 def encryption_key_store_download():
     """
-    TODO:
-    Implement based on requirements in
-    Prototype Script 3/3: Encryption Key Store (Download) GDEV-1240
+    Retrieve GHGA secret key, user public key and create personalized envelope
+    See: Prototype Script 3/3: Encryption Key Store (Download) GDEV-1240
     """
+    # get ghga private key and user public keys
+    ghga_secret = crypt4gh.keys.get_private_key(INPUT_DIR / "ghga.sec", lambda: None)
+    user_public = crypt4gh.keys.get_public_key(INPUT_DIR / "researcher_2.pub")
+    keys = [(0, ghga_secret, user_public)]
+    header_content = crypt4gh.header.make_packet_data_enc(0, SESSION_KEY)
+    header_packets = crypt4gh.header.encrypt(header_content, keys)
+    header_bytes = crypt4gh.header.serialize(header_packets)
+    return header_bytes
 
 
 def request_cryp4gh_private_key() -> str:
@@ -153,6 +182,48 @@ def request_cryp4gh_private_key() -> str:
     ghga_sec = crypt4gh.keys.get_private_key(INPUT_DIR / "ghga.sec", lambda: None)
 
     return ghga_sec
+
+
+def download(*, checksum: str):
+    """
+    Generate envelope for download user, concatenate with encrypted content,
+    decrypt content for both users separatly and verify checksum
+    """
+    envelope = encryption_key_store_download()
+    file_path = OUTPUT_DIR / "encrypted_content"
+
+    downloaded_file = OUTPUT_DIR / "downloaded_file"
+
+    with file_path.open("rb") as encrypted_content:
+        with downloaded_file.open("wb") as file:
+            file.write(envelope)
+            shutil.copyfileobj(encrypted_content, file)
+
+    ghga_public = crypt4gh.keys.get_public_key(INPUT_DIR / "ghga.pub")
+    user_secret = crypt4gh.keys.get_private_key(
+        INPUT_DIR / "researcher_2.sec", lambda: None
+    )
+    outpath = OUTPUT_DIR / "decrypted_content"
+
+    with downloaded_file.open("rb") as infile:
+        with outpath.open("wb") as outfile:
+            crypt4gh.lib.decrypt(
+                keys=[(0, user_secret, ghga_public)],
+                infile=infile,
+                outfile=outfile,
+                sender_pubkey=ghga_public,
+            )
+
+    # checksum validation
+    with outpath.open("rb") as file:
+        computed_checksum = hashlib.sha256(file.read()).hexdigest()
+        if checksum != computed_checksum:
+            print(
+                f"Download: Checksum mismatch for '{outpath}'\nExpected: {checksum}\nActual: {computed_checksum}",
+                file=sys.stderr,
+            )
+        else:
+            print(f"Download: Checksum valid for {outpath}")
 
 
 if __name__ == "__main__":
