@@ -50,12 +50,12 @@ def generate():
     # encrypt test file using crypt4gh
     encrypted = FILE_DIR / "50MiB.fasta.c4gh"
 
-    recipient_keys = [(0, user_1_secret, ghga_public), (0, user_2_secret, ghga_public)]
+    user_keys = [(0, user_1_secret, ghga_public), (0, user_2_secret, ghga_public)]
 
     # lib.encrypt expects file-like objects
     with unencrypted.open("rb") as infile:
         with encrypted.open("wb") as outfile:
-            lib.encrypt(keys=recipient_keys, infile=infile, outfile=outfile)
+            lib.encrypt(keys=user_keys, infile=infile, outfile=outfile)
 
 
 def fixed_line():
