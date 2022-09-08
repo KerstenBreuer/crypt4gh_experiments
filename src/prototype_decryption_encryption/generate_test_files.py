@@ -44,13 +44,10 @@ def generate():
     sk_location = (FILE_DIR / "researcher_1.sec").resolve()
     user_1_secret = get_private_key(sk_location, lambda: None)
 
-    sk_location = (FILE_DIR / "researcher_2.sec").resolve()
-    user_2_secret = get_private_key(sk_location, lambda: None)
-
     # encrypt test file using crypt4gh
     encrypted = FILE_DIR / "50MiB.fasta.c4gh"
 
-    user_keys = [(0, user_1_secret, ghga_public), (0, user_2_secret, ghga_public)]
+    user_keys = [(0, user_1_secret, ghga_public)]
 
     # lib.encrypt expects file-like objects
     with unencrypted.open("rb") as infile:

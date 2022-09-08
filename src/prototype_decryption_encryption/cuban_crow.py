@@ -154,11 +154,8 @@ def encryption_key_store_download():
     """
     # get ghga private key and user public keys
     ghga_secret = crypt4gh.keys.get_private_key(INPUT_DIR / "ghga.sec", lambda: None)
-    pub_keys = [
-        crypt4gh.keys.get_public_key(INPUT_DIR / "researcher_1.pub"),
-        crypt4gh.keys.get_public_key(INPUT_DIR / "researcher_2.pub"),
-    ]
-    keys = [(0, ghga_secret, pub_key) for pub_key in pub_keys]
+    pub_key = crypt4gh.keys.get_public_key(INPUT_DIR / "researcher_2.pub")
+    keys = [(0, ghga_secret, pub_key)]
     header_content = crypt4gh.header.make_packet_data_enc(0, SESSION_KEY)
     header_packets = crypt4gh.header.encrypt(header_content, keys)
     header_bytes = crypt4gh.header.serialize(header_packets)
@@ -190,42 +187,31 @@ def download(*, checksum: str):
             shutil.copyfileobj(encrypted_content, file)
 
     ghga_public = crypt4gh.keys.get_public_key(INPUT_DIR / "ghga.pub")
-    secret_keys = [
-        crypt4gh.keys.get_private_key(INPUT_DIR / "researcher_1.sec", lambda: None),
-        crypt4gh.keys.get_private_key(INPUT_DIR / "researcher_2.sec", lambda: None),
-    ]
-    outfile_1 = OUTPUT_DIR / "decrypted_content_1"
-    outfile_2 = OUTPUT_DIR / "decrypted_content_2"
+    secret_key = crypt4gh.keys.get_private_key(
+        INPUT_DIR / "researcher_2.sec", lambda: None
+    )
+    outpath = OUTPUT_DIR / "decrypted_content"
 
     # explicitly check decryption with both keys
     with downloaded_file.open("rb") as infile:
-        with outfile_1.open("wb") as outfile:
+        with outpath.open("wb") as outfile:
             crypt4gh.lib.decrypt(
-                keys=[(0, secret_keys[0], ghga_public)],
+                keys=[(0, secret_key, ghga_public)],
                 infile=infile,
                 outfile=outfile,
-            )
-
-        # Rewind input file
-        infile.seek(0)
-        with outfile_2.open("wb") as outfile:
-            crypt4gh.lib.decrypt(
-                keys=[(0, secret_keys[1], ghga_public)],
-                infile=infile,
-                outfile=outfile,
+                sender_pubkey=ghga_public,
             )
 
     # checksum validation
-    for outpath in [outfile_1, outfile_2]:
-        with outpath.open("rb") as file:
-            computed_checksum = hashlib.sha256(file.read()).hexdigest()
-            if checksum != computed_checksum:
-                print(
-                    f"Checksum mismatch for '{outpath}'\nExpected: {checksum}\nActual: {computed_checksum}",
-                    file=sys.stderr,
-                )
-            else:
-                print(f"Checksum works for {outpath}")
+    with outpath.open("rb") as file:
+        computed_checksum = hashlib.sha256(file.read()).hexdigest()
+        if checksum != computed_checksum:
+            print(
+                f"Checksum mismatch for '{outpath}'\nExpected: {checksum}\nActual: {computed_checksum}",
+                file=sys.stderr,
+            )
+        else:
+            print(f"Checksum valid for {outpath}")
 
 
 if __name__ == "__main__":
