@@ -64,20 +64,20 @@ def encryption_key_store_upload(file_part: bytes) -> Tuple[str, str, int]:
     file_stream = io.BytesIO(file_part)
 
     # request crypt4gh private key
-    receiver_sec = request_cryp4gh_private_key()
-    receiver_keys = [(0, receiver_sec, None)]
+    ghga_sec = request_cryp4gh_private_key()
+    ghga_keys = [(0, ghga_sec, None)]
 
     session_keys, __ = crypt4gh.header.deconstruct(
         file_stream,
-        keys=receiver_keys,
+        keys=ghga_keys,
     )
 
     # retrieve session key, offset and generate hash id of session key
-    session_key = session_keys
+    session_key = session_keys[0]
     content_start = file_stream.tell()
     session_key_id = hashlib.sha256(session_key).hexdigest()
 
-    return str(session_key), session_key_id, content_start
+    return session_key, session_key_id, content_start
 
 
 def encryption_key_store_download():
@@ -89,7 +89,7 @@ def encryption_key_store_download():
 
 
 def request_cryp4gh_private_key() -> str:
-    """Returns the location of the ghga private key"""
+    """Returns the ghga private key"""
 
     # get secret ghga key:
     ghga_sec = crypt4gh.keys.get_private_key(
