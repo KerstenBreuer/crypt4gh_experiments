@@ -20,7 +20,7 @@ from crypt4gh import lib  # type: ignore
 from crypt4gh.keys import get_private_key, get_public_key  # type: ignore
 
 HEADER = ">ABC DNA"
-FILE_DIR = Path(__file__).parent.parent.parent / "input_files"
+FILE_DIR = Path(__file__).parent.parent.parent.resolve() / "input_files"
 
 
 def generate():
@@ -38,16 +38,19 @@ def generate():
             file.write(f"{fixed_line()}\n")
 
     # get encryption keys
-    pk_location = (FILE_DIR / "receiver.pub").resolve()
-    public_key = get_public_key(pk_location)
+    pk_location = (FILE_DIR / "ghga.pub").resolve()
+    ghga_public = get_public_key(pk_location)
 
-    sk_location = (FILE_DIR / "sender.sec").resolve()
-    secret_key = get_private_key(sk_location, lambda: None)
+    sk_location = (FILE_DIR / "researcher_1.sec").resolve()
+    user_1_secret = get_private_key(sk_location, lambda: None)
+
+    sk_location = (FILE_DIR / "researcher_2.sec").resolve()
+    user_2_secret = get_private_key(sk_location, lambda: None)
 
     # encrypt test file using crypt4gh
     encrypted = FILE_DIR / "50MiB.fasta.c4gh"
 
-    recipient_keys = [(0, secret_key, public_key)]
+    recipient_keys = [(0, user_1_secret, ghga_public), (0, user_2_secret, ghga_public)]
 
     # lib.encrypt expects file-like objects
     with unencrypted.open("rb") as infile:
