@@ -167,8 +167,8 @@ def encryption_key_store_download():
     """
     # get ghga private key and user public keys
     ghga_secret = crypt4gh.keys.get_private_key(INPUT_DIR / "ghga.sec", lambda: None)
-    pub_key = crypt4gh.keys.get_public_key(INPUT_DIR / "researcher_2.pub")
-    keys = [(0, ghga_secret, pub_key)]
+    ghga_public = crypt4gh.keys.get_public_key(INPUT_DIR / "researcher_2.pub")
+    keys = [(0, ghga_secret, ghga_public)]
     header_content = crypt4gh.header.make_packet_data_enc(0, SESSION_KEY)
     header_packets = crypt4gh.header.encrypt(header_content, keys)
     header_bytes = crypt4gh.header.serialize(header_packets)
@@ -186,7 +186,7 @@ def request_cryp4gh_private_key() -> str:
 
 def download(*, checksum: str):
     """
-    Generate envelope for two users, contcatenat with encrypted content,
+    Generate envelope for download user, concatenate with encrypted content,
     decrypt content for both users separatly and verify checksum
     """
     envelope = encryption_key_store_download()
@@ -205,7 +205,6 @@ def download(*, checksum: str):
     )
     outpath = OUTPUT_DIR / "decrypted_content"
 
-    # explicitly check decryption with both keys
     with downloaded_file.open("rb") as infile:
         with outpath.open("wb") as outfile:
             crypt4gh.lib.decrypt(
