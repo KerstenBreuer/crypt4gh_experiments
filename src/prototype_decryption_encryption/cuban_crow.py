@@ -46,11 +46,12 @@ def run():
     """
     Logic to start simulated upload and then download
     """
+    checksum = "3e67802e821306fe287b85001dbab213a3eb4d2560702c5740741e5111c97841"
     interrogation_room_upload(
         file_location=INPUT_DIR / "50MiB.fasta.c4gh",
-        checksum="3e67802e821306fe287b85001dbab213a3eb4d2560702c5740741e5111c97841",
+        checksum=checksum,
     )
-    # download(checksum="3e67802e821306fe287b85001dbab213a3eb4d2560702c5740741e5111c97841")
+    download(checksum=checksum)
 
 
 def interrogation_room_upload(*, file_location: Path, checksum: str):
@@ -147,17 +148,18 @@ def encryption_key_store_download():
     See: Prototype Script 3/3: Encryption Key Store (Download) GDEV-1240
     """
     # get ghga private key and user public keys
-    ghga_secret = get_private_key(INDIR / "ghga.sec", lambda: None)
+    ghga_secret = crypt4gh.keys.get_private_key(INPUT_DIR / "ghga.sec", lambda: None)
     pub_keys = [
-        get_public_key(INDIR / "researcher_1.pub"),
-        get_public_key(INDIR / "researcher_2.pub"),
+        crypt4gh.keys.get_public_key(INPUT_DIR / "researcher_1.pub"),
+        crypt4gh.keys.get_public_key(INPUT_DIR / "researcher_2.pub"),
     ]
     # fixme: Placeholder. Replace with K_Data from encryption_key_store_upload,
     # get decryption secret -> save as global state in either 1 or 2
     session_keys = ["ABCDEFGHIJKLMNOPQRTSUVWXYZ"]
     header = Header(session_keys=session_keys, edit_list=None)
     keys = [(0, ghga_secret, pub_key) for pub_key in pub_keys]
-    return crypt4gh.header.encrypt(packet=header, keys=keys)
+    envelope_parts = crypt4gh.header.encrypt(packet=header, keys=keys)
+    return b"".join(envelope_parts)
 
 
 def request_cryp4gh_private_key() -> str:
@@ -175,34 +177,34 @@ def download(*, checksum: str):
     decrypt content for both users separatly and verify checksum
     """
     envelope = encryption_key_store_download()
-    file_path = OUTDIR / "encrypted_content"
+    file_path = OUTPUT_DIR / "encrypted_content"
 
-    downloaded_file = OUTDIR / "downloaded_file"
+    downloaded_file = OUTPUT_DIR / "downloaded_file"
 
     with file_path.open("rb") as encrypted_content:
         with downloaded_file.open("wb") as file:
             file.write(envelope)
             shutil.copyfileobj(encrypted_content, file)
 
-    ghga_public = get_public_key(INDIR / "ghga.pub")
+    ghga_public = crypt4gh.keys.get_public_key(INPUT_DIR / "ghga.pub")
     secret_keys = [
-        get_private_key(INDIR / "researcher_1.sec", lambda: None),
-        get_private_key(INDIR / "researcher_2.sec", lambda: None),
+        crypt4gh.keys.get_private_key(INPUT_DIR / "researcher_1.sec", lambda: None),
+        crypt4gh.keys.get_private_key(INPUT_DIR / "researcher_2.sec", lambda: None),
     ]
-    outfile_1 = OUTDIR / "decrypted_content_1"
-    outfile_2 = OUTDIR / "decrypted_content_2"
+    outfile_1 = OUTPUT_DIR / "decrypted_content_1"
+    outfile_2 = OUTPUT_DIR / "decrypted_content_2"
 
     # explicitly check decryption with both keys
     with downloaded_file.open("rb") as infile:
         with outfile_1.open("wb") as outfile:
-            lib.decrypt(
+            crypt4gh.lib.decrypt(
                 keys=[(0, secret_keys[0], ghga_public)],
                 infile=infile,
                 outfile=outfile,
             )
 
         with outfile_2.open("wb") as outfile:
-            lib.decrypt(
+            crypt4gh.lib.decrypt(
                 keys=[(0, secret_keys[1], ghga_public)],
                 infile=infile,
                 outfile=outfile,
