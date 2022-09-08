@@ -162,13 +162,13 @@ def encryption_key_store_upload(file_part: bytes) -> Tuple[str, str, int]:
 
 def encryption_key_store_download():
     """
-    Retrieve GHGA secret key, user 1+2 public keys and create personalized envelope
+    Retrieve GHGA secret key, user public key and create personalized envelope
     See: Prototype Script 3/3: Encryption Key Store (Download) GDEV-1240
     """
     # get ghga private key and user public keys
     ghga_secret = crypt4gh.keys.get_private_key(INPUT_DIR / "ghga.sec", lambda: None)
-    ghga_public = crypt4gh.keys.get_public_key(INPUT_DIR / "researcher_2.pub")
-    keys = [(0, ghga_secret, ghga_public)]
+    user_public = crypt4gh.keys.get_public_key(INPUT_DIR / "researcher_2.pub")
+    keys = [(0, ghga_secret, user_public)]
     header_content = crypt4gh.header.make_packet_data_enc(0, SESSION_KEY)
     header_packets = crypt4gh.header.encrypt(header_content, keys)
     header_bytes = crypt4gh.header.serialize(header_packets)
